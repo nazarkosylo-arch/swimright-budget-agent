@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwimRight Miami — Budget Approval Portal</title>
+  <link rel="stylesheet" href="/static/styles.css?v=3.0">
+</head>
+<body>
+
+  <!-- Shared Login & User Selection Modal Overlay -->
+  <div id="loginOverlay" class="login-overlay" style="display: flex;">
+    <div class="login-card" style="max-width: 440px; width: 90%; text-align: center; padding: 2.5rem 2rem;">
+      <div class="brand-logo" style="margin: 0 auto 1.2rem auto; width: 64px; height: 64px; font-size: 1.8rem;">SR</div>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.7rem; font-weight: 700; margin-bottom: 0.3rem; color: #fff;">SwimRight Miami</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Budget Approval Portal</p>
+
+      <!-- Step 1: Password Gate -->
+      <div id="loginStep1">
+        <form onsubmit="handlePasswordSubmit(event)">
+          <div class="form-group" style="text-align: left; margin-bottom: 1.5rem;">
+            <label style="font-weight: 600; font-size: 0.9rem; color: var(--text-color);">Enter Shared Password / Пароль</label>
+            <input type="password" id="sharedPasswordInput" class="form-control" placeholder="Password123!" required style="padding: 0.85rem 1rem; font-size: 1rem;">
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.4rem;">💡 Shared password for all team members (Password123!)</div>
+          </div>
+          <button type="submit" class="btn" style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 1rem;">Continue ➔</button>
+        </form>
+      </div>
+
+      <!-- Step 2: Question - Who is submitting the budget? -->
+      <div id="loginStep2" style="display: none;">
+        <div style="margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 0.4rem;">Кем загружается бюджет?</h3>
+          <p style="font-size: 0.88rem; color: var(--text-muted);">Select who is submitting/uploading the budget:</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
+          <button class="btn btn-secondary" style="padding: 0.9rem; font-size: 1rem; font-weight: 600; justify-content: center; width: 100%;" onclick="selectUser('approver@test.com')">
+            Dmytro (Approver)
+          </button>
+          <button class="btn btn-secondary" style="padding: 0.9rem; font-size: 1rem; font-weight: 600; justify-content: center; width: 100%;" onclick="selectUser('admin@test.com')">
+            Nazarii (SwimFast)
+          </button>
+          <button class="btn btn-secondary" style="padding: 0.9rem; font-size: 1rem; font-weight: 600; justify-content: center; width: 100%;" onclick="selectUser('requester1@test.com')">
+            Liza (Office)
+          </button>
+          <button class="btn btn-secondary" style="padding: 0.9rem; font-size: 1rem; font-weight: 600; justify-content: center; width: 100%;" onclick="selectUser('requester2@test.com')">
+            Denys (SwimRight)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div id="appShell" style="display: flex; flex-direction: column; min-height: 100vh;">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-logo">SR</div>
+        <div>
+          <div class="brand-title">SwimRight Miami</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Budget Approval Assistant v1.3</div>
+        </div>
+      </div>
+
+      <!-- Current User Profile & Quick Actions -->
+      <div class="user-profile" style="display: flex; align-items: center; gap: 1rem;">
+        <div style="text-align: right;">
+          <div id="userDisplayName" style="font-weight: 700; font-size: 0.95rem; color: var(--accent-cyan);">Dmytro</div>
+          <div id="userRoleName" style="font-size: 0.75rem; color: var(--text-muted);">Approver (Executive)</div>
+        </div>
+        <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="openUserSwitcher()">👤 Switch User</button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="app-container">
+
+      <!-- Navigation Tabs -->
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard & Approval Queue</button>
+        <button class="tab-btn" data-tab="tab-submit">📝 Submit Expenses</button>
+      </nav>
+
+      <!-- Tab 1: Dashboard -->
+      <div id="tab-dashboard" class="tab-content">
+        
+        <!-- Metrics Cards (3 Cards) -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Total Submitted</span>
+              <span class="metric-badge badge-pending">August '26</span>
+            </div>
+            <div class="metric-value" id="metricSubmitted">$0.00</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Total Approved</span>
+              <span class="metric-badge badge-approved">Approved</span>
+            </div>
+            <div class="metric-value" id="metricApproved" style="color: var(--accent-green);">$0.00</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Pending Decisions</span>
+              <span class="metric-badge badge-pending">Pending</span>
+            </div>
+            <div class="metric-value" id="metricPending" style="color: var(--accent-amber);">0</div>
+          </div>
+        </div>
+
+        <!-- Recent Expenses Table -->
+        <div class="panel">
+          <div class="panel-title">
+            <span>Operational Expense Ledger</span>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="bulkApproveBtn" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="handleApproveAll()">✅ Approve All Pending</button>
+              <button class="btn btn-secondary" onclick="loadDashboardData()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">🔄 Refresh</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Submitted By</th>
+                  <th>Expense Name</th>
+                  <th>Amount (USD)</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTbody">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: var(--text-muted);">No expenses submitted yet. Switch to '📝 Submit Expenses' tab to add items!</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Submit Expenses -->
+      <div id="tab-submit" class="tab-content" style="display: none;">
+        <div class="panel">
+          <div class="panel-title">
+            <span>Submit Budget Expenses</span>
+            <button class="btn btn-secondary" onclick="fill5SampleRows()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">⚡ Auto-Fill 5 Sample Rows</button>
+          </div>
+
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+            Fill in any number of expense rows below (1 to 5). Empty rows are automatically skipped.
+          </p>
+
+          <form id="batchExpensesForm" onsubmit="submitBatchExpenses(event)">
+            <div class="table-responsive" style="margin-bottom: 1.5rem;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 4%;">#</th>
+                    <th style="width: 24%;">Expense Name</th>
+                    <th style="width: 14%;">Amount (USD)</th>
+                    <th style="width: 16%;">Program</th>
+                    <th style="width: 16%;">Category</th>
+                    <th style="width: 16%;">Purpose (Optional)</th>
+                    <th style="width: 10%; text-align: center;">Additional?</th>
+                  </tr>
+                </thead>
+                <tbody id="batchRowsTbody">
+                  <!-- Row 1 -->
+                  <tr>
+                    <td><strong>1</strong></td>
+                    <td><input type="text" class="form-control exp-batch-name" placeholder="e.g. Printer Paper"></td>
+                    <td><input type="number" step="0.01" class="form-control exp-batch-amount" placeholder="150.00"></td>
+                    <td>
+                      <select class="form-control exp-batch-program">
+                        <option value="Office">Office</option>
+                        <option value="SwimFast">SwimFast</option>
+                        <option value="SwimRight / SwimSafe">SwimRight / SwimSafe</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control exp-batch-category">
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Travel Expenses">Travel Expenses</option>
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                        <option value="Marketing & Events">Marketing & Events</option>
+                      </select>
+                    </td>
+                    <td><input type="text" class="form-control exp-batch-purpose" placeholder="Optional purpose..."></td>
+                    <td style="text-align: center;"><input type="checkbox" class="exp-batch-additional" style="width: 18px; height: 18px;"></td>
+                  </tr>
+
+                  <!-- Row 2 -->
+                  <tr>
+                    <td><strong>2</strong></td>
+                    <td><input type="text" class="form-control exp-batch-name" placeholder="e.g. Pool Chemicals"></td>
+                    <td><input type="number" step="0.01" class="form-control exp-batch-amount" placeholder="320.00"></td>
+                    <td>
+                      <select class="form-control exp-batch-program">
+                        <option value="SwimRight / SwimSafe">SwimRight / SwimSafe</option>
+                        <option value="Office">Office</option>
+                        <option value="SwimFast">SwimFast</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control exp-batch-category">
+                        <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Travel Expenses">Travel Expenses</option>
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Marketing & Events">Marketing & Events</option>
+                      </select>
+                    </td>
+                    <td><input type="text" class="form-control exp-batch-purpose" placeholder="Optional purpose..."></td>
+                    <td style="text-align: center;"><input type="checkbox" class="exp-batch-additional" style="width: 18px; height: 18px;"></td>
+                  </tr>
+
+                  <!-- Row 3 -->
+                  <tr>
+                    <td><strong>3</strong></td>
+                    <td><input type="text" class="form-control exp-batch-name" placeholder="e.g. Software Subscription"></td>
+                    <td><input type="number" step="0.01" class="form-control exp-batch-amount" placeholder="85.00"></td>
+                    <td>
+                      <select class="form-control exp-batch-program">
+                        <option value="SwimFast">SwimFast</option>
+                        <option value="Office">Office</option>
+                        <option value="SwimRight / SwimSafe">SwimRight / SwimSafe</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control exp-batch-category">
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Travel Expenses">Travel Expenses</option>
+                        <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                        <option value="Marketing & Events">Marketing & Events</option>
+                      </select>
+                    </td>
+                    <td><input type="text" class="form-control exp-batch-purpose" placeholder="Optional purpose..."></td>
+                    <td style="text-align: center;"><input type="checkbox" class="exp-batch-additional" style="width: 18px; height: 18px;"></td>
+                  </tr>
+
+                  <!-- Row 4 -->
+                  <tr>
+                    <td><strong>4</strong></td>
+                    <td><input type="text" class="form-control exp-batch-name" placeholder="e.g. Event Banners"></td>
+                    <td><input type="number" step="0.01" class="form-control exp-batch-amount" placeholder="210.00"></td>
+                    <td>
+                      <select class="form-control exp-batch-program">
+                        <option value="Office">Office</option>
+                        <option value="SwimFast">SwimFast</option>
+                        <option value="SwimRight / SwimSafe">SwimRight / SwimSafe</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control exp-batch-category">
+                        <option value="Marketing & Events">Marketing & Events</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Travel Expenses">Travel Expenses</option>
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                      </select>
+                    </td>
+                    <td><input type="text" class="form-control exp-batch-purpose" placeholder="Optional purpose..."></td>
+                    <td style="text-align: center;"><input type="checkbox" class="exp-batch-additional" style="width: 18px; height: 18px;"></td>
+                  </tr>
+
+                  <!-- Row 5 -->
+                  <tr>
+                    <td><strong>5</strong></td>
+                    <td><input type="text" class="form-control exp-batch-name" placeholder="e.g. Travel & Flight"></td>
+                    <td><input type="number" step="0.01" class="form-control exp-batch-amount" placeholder="450.00"></td>
+                    <td>
+                      <select class="form-control exp-batch-program">
+                        <option value="SwimFast">SwimFast</option>
+                        <option value="Office">Office</option>
+                        <option value="SwimRight / SwimSafe">SwimRight / SwimSafe</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-control exp-batch-category">
+                        <option value="Travel Expenses">Travel Expenses</option>
+                        <option value="Office Supplies">Office Supplies</option>
+                        <option value="Software & Subscriptions">Software & Subscriptions</option>
+                        <option value="Equipment & Maintenance">Equipment & Maintenance</option>
+                        <option value="Marketing & Events">Marketing & Events</option>
+                      </select>
+                    </td>
+                    <td><input type="text" class="form-control exp-batch-purpose" placeholder="Optional purpose..."></td>
+                    <td style="text-align: center;"><input type="checkbox" class="exp-batch-additional" style="width: 18px; height: 18px;"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Additional Expense Explanation Box -->
+            <div style="margin-bottom: 1.5rem; background: rgba(15, 23, 42, 0.5); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+              <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-cyan); margin-bottom: 0.3rem;">
+                🚩 Additional Expense Request (Unplanned during active month)
+              </div>
+              <div style="font-size: 0.82rem; color: var(--text-muted);">
+                ℹ️ <strong>What is this?</strong> Use the <code>Additional?</code> checkbox for unexpected or unplanned expenses submitted outside the regular monthly window (20th–29th). Additional Expenses route immediately to the Approver with a 4-business-day review target.
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+              <button type="submit" class="btn" style="padding: 0.85rem 2rem;">🚀 Submit Filled Expenses</button>
+              <button type="button" class="btn btn-secondary" onclick="clearBatchForm()">🗑️ Clear All Rows</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/app.js?v=3.0"></script>
+</body>
+</html>

@@ -1,0 +1,327 @@
+// SwimRight Miami Budget Agent — Standalone Frontend JS App
+
+let currentUser = {
+  email: "approver@test.com",
+  name: "Dmytro Kachurovskyy",
+  role: "Approver",
+  department: "Executive"
+};
+
+let expensesList = [];
+
+const USER_ROLES = {
+  "approver@test.com": {
+    name: "Dmytro Kachurovskyy",
+    shortName: "Dmytro",
+    role: "Approver",
+    department: "Executive"
+  },
+  "admin@test.com": {
+    name: "Nazarii Kosylo",
+    shortName: "Nazarii",
+    role: "Requester + Administrator",
+    department: "SwimFast"
+  },
+  "requester1@test.com": {
+    name: "Liza Dragun",
+    shortName: "Liza",
+    role: "Requester",
+    department: "Office"
+  },
+  "requester2@test.com": {
+    name: "Denys Kostromin",
+    shortName: "Denys",
+    role: "Requester",
+    department: "SwimRight / SwimSafe"
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  
+  // Clear any cached user state so password is ALWAYS required on page load
+  localStorage.removeItem("swimright_user");
+  
+  // Always show shared password modal on startup
+  document.getElementById("loginOverlay").style.display = "flex";
+  document.getElementById("loginStep1").style.display = "block";
+  document.getElementById("loginStep2").style.display = "none";
+  document.getElementById("sharedPasswordInput").value = "";
+});
+
+function handlePasswordSubmit(e) {
+  e.preventDefault();
+  const pwd = document.getElementById("sharedPasswordInput").value.trim();
+  
+  if (pwd.length > 0) {
+    document.getElementById("loginStep1").style.display = "none";
+    document.getElementById("loginStep2").style.display = "block";
+    showToast("✅ Password accepted! Select active user below.");
+  } else {
+    showToast("❌ Please enter the password (Password123!)");
+  }
+}
+
+function selectUser(email, isQuiet = false) {
+  const info = USER_ROLES[email];
+  if (!info) return;
+
+  currentUser = {
+    email: email,
+    name: info.name,
+    shortName: info.shortName,
+    role: info.role,
+    department: info.department
+  };
+
+  localStorage.setItem("swimright_user", JSON.stringify(currentUser));
+
+  // Hide login overlay
+  document.getElementById("loginOverlay").style.display = "none";
+
+  const nameEl = document.getElementById("userDisplayName");
+  const roleEl = document.getElementById("userRoleName");
+  if (nameEl) nameEl.innerText = currentUser.shortName;
+  if (roleEl) roleEl.innerText = `${currentUser.role} (${currentUser.department})`;
+
+  if (!isQuiet) {
+    showToast(`⚡ Signed in as: ${currentUser.name} (${currentUser.role})`);
+  }
+  
+  loadDashboardData();
+}
+
+function openUserSwitcher() {
+  document.getElementById("loginOverlay").style.display = "flex";
+  document.getElementById("loginStep1").style.display = "none";
+  document.getElementById("loginStep2").style.display = "block";
+}
+
+function initTabs() {
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  tabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabBtns.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      const tabId = btn.getAttribute("data-tab");
+      document.querySelectorAll(".tab-content").forEach(c => c.style.display = "none");
+      const target = document.getElementById(tabId);
+      if (target) target.style.display = "block";
+    });
+  });
+}
+
+async function loadDashboardData() {
+  try {
+    renderExpensesTable();
+    updateMetrics();
+  } catch (err) {
+    console.error("Failed to load dashboard data:", err);
+  }
+}
+
+function fill5SampleRows() {
+  const names = ["Printer Paper & Ink", "Pool Chemicals", "Software Subscription", "Marketing Banners", "Late Travel Expense"];
+  const amounts = [150.00, 320.00, 85.00, 210.00, 450.00];
+  const programs = ["Office", "SwimRight / SwimSafe", "SwimFast", "Office", "SwimFast"];
+  const categories = ["Office Supplies", "Equipment & Maintenance", "Software & Subscriptions", "Marketing & Events", "Travel Expenses"];
+  const purposes = ["Monthly paper restocking", "Safety pool chemicals", "Design tool license", "Event promotion", "Late championship travel"];
+
+  const tbody = document.getElementById("batchRowsTbody");
+  const rows = tbody.querySelectorAll("tr");
+
+  for (let i = 0; i < 5; i++) {
+    const row = rows[i];
+    if (row) {
+      row.querySelector(".exp-batch-name").value = names[i];
+      row.querySelector(".exp-batch-amount").value = amounts[i];
+      row.querySelector(".exp-batch-program").value = programs[i];
+      row.querySelector(".exp-batch-category").value = categories[i];
+      row.querySelector(".exp-batch-purpose").value = purposes[i];
+      row.querySelector(".exp-batch-additional").checked = (i === 4);
+    }
+  }
+
+  showToast("⚡ 5 Sample Rows Auto-Filled! Click 'Submit Filled Expenses' below!");
+}
+
+function clearBatchForm() {
+  const tbody = document.getElementById("batchRowsTbody");
+  const rows = tbody.querySelectorAll("tr");
+  rows.forEach(row => {
+    row.querySelector(".exp-batch-name").value = "";
+    row.querySelector(".exp-batch-amount").value = "";
+    row.querySelector(".exp-batch-purpose").value = "";
+    const addCheck = row.querySelector(".exp-batch-additional");
+    if (addCheck) addCheck.checked = false;
+  });
+  showToast("Cleared rows.");
+}
+
+async function submitBatchExpenses(e) {
+  e.preventDefault();
+
+  const tbody = document.getElementById("batchRowsTbody");
+  const rows = tbody.querySelectorAll("tr");
+
+  let submittedCount = 0;
+  let batchPayloads = [];
+
+  rows.forEach(row => {
+    const name = row.querySelector(".exp-batch-name").value.trim();
+    const amountVal = row.querySelector(".exp-batch-amount").value.trim();
+    const program = row.querySelector(".exp-batch-program").value;
+    const category = row.querySelector(".exp-batch-category").value;
+    const purpose = row.querySelector(".exp-batch-purpose").value.trim() || "N/A";
+    const isAdd = row.querySelector(".exp-batch-additional") ? row.querySelector(".exp-batch-additional").checked : false;
+
+    if (name && amountVal) {
+      batchPayloads.push({
+        SubmittedBy: currentUser.email,
+        Program: program,
+        ExpenseName: name,
+        AmountUSD: parseFloat(amountVal),
+        PurchasePurpose: purpose,
+        ExpenseCategory: category,
+        is_additional: isAdd
+      });
+    }
+  });
+
+  if (batchPayloads.length === 0) {
+    showToast("❌ Please fill in at least 1 expense row!");
+    return;
+  }
+
+  showToast(`🚀 Submitting ${batchPayloads.length} expense(s) in one action...`);
+
+  for (const payload of batchPayloads) {
+    try {
+      const res = await fetch("/api/expenses/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        expensesList.unshift(data.record);
+        submittedCount++;
+      }
+    } catch (err) {}
+  }
+
+  showToast(`✅ Successfully submitted ${submittedCount} expense(s)!`);
+  clearBatchForm();
+  
+  document.querySelector('[data-tab="tab-dashboard"]').click();
+  loadDashboardData();
+}
+
+function updateMetrics() {
+  const totalSubmitted = expensesList.reduce((sum, e) => sum + e.AmountUSD, 0);
+  const totalApproved = expensesList.filter(e => e.CurrentStatus === "Approved").reduce((sum, e) => sum + e.AmountUSD, 0);
+  const pendingCount = expensesList.filter(e => e.CurrentStatus === "Pending").length;
+  
+  document.getElementById("metricSubmitted").innerText = `$${totalSubmitted.toFixed(2)}`;
+  document.getElementById("metricApproved").innerText = `$${totalApproved.toFixed(2)}`;
+  document.getElementById("metricPending").innerText = pendingCount;
+}
+
+function renderExpensesTable() {
+  const tbody = document.getElementById("expensesTbody");
+  if (!tbody) return;
+  
+  if (expensesList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No expenses submitted yet. Switch to '📝 Submit Expenses' tab to add items!</td></tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = expensesList.map(exp => {
+    let typeBadge = '';
+    if (exp.RequestType === 'Late Submission') {
+      typeBadge = '<span class="metric-badge" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 700; margin-left: 0.5rem;">⏰ LATE</span>';
+    } else if (exp.RequestType === 'Additional Expense Request') {
+      typeBadge = '<span class="metric-badge" style="background: rgba(6, 182, 212, 0.25); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.5); font-weight: 700; margin-left: 0.5rem;">🚩 ADDITIONAL</span>';
+    }
+
+    return `
+    <tr>
+      <td>${exp.SubmittedBy}</td>
+      <td><strong>${exp.ExpenseName}</strong> ${typeBadge}</td>
+      <td><strong>$${exp.AmountUSD.toFixed(2)}</strong></td>
+      <td><span class="metric-badge badge-pending">${exp.ExpenseCategory}</span></td>
+      <td>
+        <span class="metric-badge ${getStatusBadgeClass(exp.CurrentStatus)}">
+          ${exp.CurrentStatus}
+        </span>
+      </td>
+      <td style="white-space: nowrap;">
+        ${exp.CurrentStatus === 'Pending' ? `
+          <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="approveItem('${exp.ExpenseID}')">Approve</button>
+          <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="rejectItem('${exp.ExpenseID}')">Reject</button>
+        ` : ''}
+        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #f87171;" onclick="deleteItem('${exp.ExpenseID}')">🗑️ Delete</button>
+      </td>
+    </tr>
+  `;
+  }).join("");
+}
+
+function getStatusBadgeClass(status) {
+  if (status === "Approved") return "badge-approved";
+  if (status === "Rejected") return "badge-rejected";
+  return "badge-pending";
+}
+
+async function approveItem(expenseId) {
+  const exp = expensesList.find(e => e.ExpenseID === expenseId);
+  if (exp) {
+    exp.CurrentStatus = "Approved";
+    showToast(`✅ Expense approved!`);
+    loadDashboardData();
+  }
+}
+
+async function rejectItem(expenseId) {
+  const exp = expensesList.find(e => e.ExpenseID === expenseId);
+  if (exp) {
+    exp.CurrentStatus = "Rejected";
+    showToast(`❌ Expense rejected.`);
+    loadDashboardData();
+  }
+}
+
+async function deleteItem(expenseId) {
+  try {
+    await fetch(`/api/expenses/${expenseId}`, { method: "DELETE" });
+  } catch(e) {}
+
+  expensesList = expensesList.filter(e => e.ExpenseID !== expenseId);
+  showToast(`🗑️ Expense deleted!`);
+  loadDashboardData();
+}
+
+async function handleApproveAll() {
+  let count = 0;
+  expensesList.forEach(exp => {
+    if (exp.CurrentStatus === "Pending" && exp.RequestType === "Monthly Expense Request") {
+      exp.CurrentStatus = "Approved";
+      count++;
+    }
+  });
+  showToast(`✅ Bulk Action: Approved ${count} pending monthly expenses!`);
+  loadDashboardData();
+}
+
+function showToast(text) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerText = text;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
