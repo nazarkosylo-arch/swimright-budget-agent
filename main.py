@@ -1,3 +1,5 @@
+import asyncio
+import httpx
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -17,6 +19,22 @@ app = FastAPI(
 # Global Service Instances
 graph_service = GraphService()
 workflow_engine = WorkflowEngine(graph_service)
+
+# Keep-Alive Self Ping Loop to prevent Render free instance from sleeping
+async def keep_alive_background_ping():
+    await asyncio.sleep(10)
+    url = "https://swimright-budget-agent.onrender.com/health"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        while True:
+            try:
+                await client.get(url)
+            except Exception:
+                pass
+            await asyncio.sleep(180) # Every 3 minutes
+
+@app.on_event("startup")
+async def start_keep_alive():
+    asyncio.create_task(keep_alive_background_ping())
 
 # Mount static directory for standalone Web App
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -115,6 +133,10 @@ async def submit_expense_endpoint(payload: ExpenseSubmitSchema):
         }
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
+
+@app.get("/api/expenses")
+async def get_all_expenses_endpoint():
+    return list(graph_service._expenses.values())
 
 @app.get("/api/expenses/{expense_id}")
 async def get_expense_endpoint(expense_id: str):
