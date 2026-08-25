@@ -1,7 +1,11 @@
 import asyncio
+import json
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from config import EASTERN_TZ, DEFAULT_APPROVER_EMAIL
+
+DB_FILE = "expenses_db.json"
 
 class GraphService:
     """
@@ -10,7 +14,6 @@ class GraphService:
     """
     def __init__(self):
         self._lock = asyncio.Lock()
-        # In-memory operational store simulating SharePoint Lists for testing/development
         self._expenses: Dict[str, Dict] = {}
         self._categories: List[str] = [
             "Office Supplies",
@@ -22,6 +25,32 @@ class GraphService:
         self._drafts: Dict[str, Dict] = {}
         self._id_counters: Dict[str, int] = {}
         self._active_approver: str = DEFAULT_APPROVER_EMAIL
+        self._load_from_disk()
+
+    def _load_from_disk(self):
+        if os.getenv("TESTING") or os.getenv("PYTEST_CURRENT_TEST"):
+            return
+        if os.path.exists(DB_FILE):
+            try:
+                with open(DB_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        self._expenses = data.get("expenses", {})
+                        self._id_counters = data.get("counters", {})
+            except Exception:
+                pass
+
+    def _save_to_disk(self):
+        if os.getenv("TESTING") or os.getenv("PYTEST_CURRENT_TEST"):
+            return
+        try:
+            with open(DB_FILE, "w", encoding="utf-8") as f:
+                json.dump({
+                    "expenses": self._expenses,
+                    "counters": self._id_counters
+                }, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
     @property
     def active_approver(self) -> str:
@@ -39,6 +68,7 @@ class GraphService:
             key = f"{year:04d}-{month:02d}"
             current_seq = self._id_counters.get(key, 0) + 1
             self._id_counters[key] = current_seq
+            self._save_to_disk()
             return f"EXP-{key}-{current_seq:03d}"
 
     async def create_expense(self, data: Dict) -> Dict:
@@ -70,6 +100,7 @@ class GraphService:
 
         async with self._lock:
             self._expenses[expense_id] = record
+            self._save_to_disk()
         return record
 
     async def get_expense(self, expense_id: str) -> Optional[Dict]:
@@ -79,6 +110,7 @@ class GraphService:
         async with self._lock:
             if expense_id in self._expenses:
                 del self._expenses[expense_id]
+                self._save_to_disk()
                 return True
             return False
 
@@ -90,6 +122,7 @@ class GraphService:
                     self._expenses[expense_id]["DecisionDate"] = decision_date
                 if unlock_reason:
                     self._expenses[expense_id]["UnlockReason"] = unlock_reason
+                self._save_to_disk()
                 return self._expenses[expense_id]
             return None
 

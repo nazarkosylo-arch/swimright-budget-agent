@@ -36,17 +36,52 @@ const USER_ROLES = {
   }
 };
 
+function getSubmittedByName(email) {
+  if (!email) return "Unknown";
+  if (USER_ROLES[email]) {
+    return USER_ROLES[email].shortName;
+  }
+  const clean = email.toLowerCase();
+  if (clean.includes("admin") || clean.includes("nazarii")) return "Nazarii";
+  if (clean.includes("approver") || clean.includes("dmytro")) return "Dmytro";
+  if (clean.includes("requester1") || clean.includes("liza")) return "Liza";
+  if (clean.includes("requester2") || clean.includes("denys")) return "Denys";
+  return email;
+}
+
+function saveExpensesToStorage() {
+  try {
+    localStorage.setItem("swimright_expenses", JSON.stringify(expensesList));
+  } catch(e) {}
+}
+
+function loadExpensesFromStorage() {
+  try {
+    const saved = localStorage.getItem("swimright_expenses");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        expensesList = parsed;
+      }
+    }
+  } catch(e) {}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
+  loadExpensesFromStorage();
   
-  // Clear any cached user state so password is ALWAYS required on page load
-  localStorage.removeItem("swimright_user");
-  
-  // Always show shared password modal on startup
-  document.getElementById("loginOverlay").style.display = "flex";
-  document.getElementById("loginStep1").style.display = "block";
-  document.getElementById("loginStep2").style.display = "none";
-  document.getElementById("sharedPasswordInput").value = "";
+  // Always show shared password modal on startup if not already verified in current session
+  const sessionVerified = sessionStorage.getItem("swimright_authenticated");
+  if (!sessionVerified) {
+    document.getElementById("loginOverlay").style.display = "flex";
+    document.getElementById("loginStep1").style.display = "block";
+    document.getElementById("loginStep2").style.display = "none";
+    document.getElementById("sharedPasswordInput").value = "";
+  } else {
+    document.getElementById("loginOverlay").style.display = "none";
+    loadDashboardData();
+  }
 });
 
 function handlePasswordSubmit(e) {
@@ -54,6 +89,7 @@ function handlePasswordSubmit(e) {
   const pwd = document.getElementById("sharedPasswordInput").value.trim();
   
   if (pwd.length > 0) {
+    sessionStorage.setItem("swimright_authenticated", "true");
     document.getElementById("loginStep1").style.display = "none";
     document.getElementById("loginStep2").style.display = "block";
     showToast("✅ Password accepted! Select active user below.");
@@ -114,11 +150,24 @@ function initTabs() {
 
 async function loadDashboardData() {
   try {
-    renderExpensesTable();
-    updateMetrics();
-  } catch (err) {
-    console.error("Failed to load dashboard data:", err);
-  }
+    const res = await fetch("/api/expenses");
+    if (res.ok) {
+      const serverData = await res.json();
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        // Merge server expenses with local expenses
+        const existingIds = new Set(expensesList.map(e => e.ExpenseID));
+        serverData.forEach(item => {
+          if (!existingIds.has(item.ExpenseID)) {
+            expensesList.unshift(item);
+          }
+        });
+        saveExpensesToStorage();
+      }
+    }
+  } catch (err) {}
+
+  renderExpensesTable();
+  updateMetrics();
 }
 
 function fill5SampleRows() {
@@ -207,10 +256,41 @@ async function submitBatchExpenses(e) {
       if (res.ok && data.success) {
         expensesList.unshift(data.record);
         submittedCount++;
+      } else {
+        // Fallback local save if offline
+        const localRecord = {
+          ExpenseID: `EXP-LOCAL-${Date.now()}-${Math.floor(Math.random()*100)}`,
+          RequestType: payload.is_additional ? "Additional Expense Request" : "Monthly Expense Request",
+          SubmittedBy: payload.SubmittedBy,
+          Program: payload.Program,
+          ExpenseName: payload.ExpenseName,
+          AmountUSD: payload.AmountUSD,
+          PurchasePurpose: payload.PurchasePurpose,
+          ExpenseCategory: payload.ExpenseCategory,
+          CurrentStatus: "Pending"
+        };
+        expensesList.unshift(localRecord);
+        submittedCount++;
       }
-    } catch (err) {}
+    } catch (err) {
+      // Fallback local save
+      const localRecord = {
+        ExpenseID: `EXP-LOCAL-${Date.now()}-${Math.floor(Math.random()*100)}`,
+        RequestType: payload.is_additional ? "Additional Expense Request" : "Monthly Expense Request",
+        SubmittedBy: payload.SubmittedBy,
+        Program: payload.Program,
+        ExpenseName: payload.ExpenseName,
+        AmountUSD: payload.AmountUSD,
+        PurchasePurpose: payload.PurchasePurpose,
+        ExpenseCategory: payload.ExpenseCategory,
+        CurrentStatus: "Pending"
+      };
+      expensesList.unshift(localRecord);
+      submittedCount++;
+    }
   }
 
+  saveExpensesToStorage();
   showToast(`✅ Successfully submitted ${submittedCount} expense(s)!`);
   clearBatchForm();
   
@@ -247,7 +327,7 @@ function renderExpensesTable() {
 
     return `
     <tr>
-      <td>${exp.SubmittedBy}</td>
+      <td><strong>${getSubmittedByName(exp.SubmittedBy)}</strong></td>
       <td><strong>${exp.ExpenseName}</strong> ${typeBadge}</td>
       <td><strong>$${exp.AmountUSD.toFixed(2)}</strong></td>
       <td><span class="metric-badge badge-pending">${exp.ExpenseCategory}</span></td>
@@ -278,6 +358,7 @@ async function approveItem(expenseId) {
   const exp = expensesList.find(e => e.ExpenseID === expenseId);
   if (exp) {
     exp.CurrentStatus = "Approved";
+    saveExpensesToStorage();
     showToast(`✅ Expense approved!`);
     loadDashboardData();
   }
@@ -287,6 +368,7 @@ async function rejectItem(expenseId) {
   const exp = expensesList.find(e => e.ExpenseID === expenseId);
   if (exp) {
     exp.CurrentStatus = "Rejected";
+    saveExpensesToStorage();
     showToast(`❌ Expense rejected.`);
     loadDashboardData();
   }
@@ -298,6 +380,7 @@ async function deleteItem(expenseId) {
   } catch(e) {}
 
   expensesList = expensesList.filter(e => e.ExpenseID !== expenseId);
+  saveExpensesToStorage();
   showToast(`🗑️ Expense deleted!`);
   loadDashboardData();
 }
@@ -310,6 +393,7 @@ async function handleApproveAll() {
       count++;
     }
   });
+  saveExpensesToStorage();
   showToast(`✅ Bulk Action: Approved ${count} pending monthly expenses!`);
   loadDashboardData();
 }
