@@ -418,3 +418,11 @@ function showToast(text) {
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+function forceResetBrowserCache() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch(e) {}
+  window.location.href = window.location.origin + "/?reset=" + Date.now();
+}

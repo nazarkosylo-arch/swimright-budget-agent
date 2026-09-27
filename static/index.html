@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SwimRight Miami — Budget Approval Portal</title>
-  <link rel="stylesheet" href="/static/styles.css?v=4.4">
+  <link rel="stylesheet" href="/static/styles.css?v=5.0">
   <script>
     try {
-      localStorage.removeItem("swimright_expenses");
+      localStorage.clear();
     } catch(e) {}
   </script>
 </head>
@@ -65,7 +65,7 @@
         <div class="brand-logo">SR</div>
         <div>
           <div class="brand-title">SwimRight Miami</div>
-          <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700;">v4.3 (Live Sync)</div>
+          <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700;">v5.0 (Live Sync)</div>
         </div>
       </div>
 
@@ -76,6 +76,7 @@
           <div id="userRoleName" style="font-size: 0.75rem; color: var(--text-muted);">Approver (Executive)</div>
         </div>
         <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="openUserSwitcher()">👤 Switch User</button>
+        <button class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #f87171;" onclick="forceResetBrowserCache()">🧹 Reset Cache</button>
       </div>
     </header>
 
@@ -327,6 +328,6 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=4.4"></script>
+  <script src="/static/app.js?v=5.0"></script>
 </body>
 </html>

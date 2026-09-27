@@ -2,7 +2,7 @@ import asyncio
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 from config import DEFAULT_APPROVER_EMAIL, ADMINISTRATOR_EMAIL, INITIAL_PARTICIPANTS
@@ -42,15 +42,17 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.middleware("http")
 async def add_no_cache_header(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
 
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 async def read_index():
-    return FileResponse("static/index.html", headers={
-        "Cache-Control": "no-cache, no-store, must-revalidate",
+    with open("static/index.html", "r", encoding="utf-8") as f:
+        content = f.read()
+    return HTMLResponse(content=content, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0"
     })
