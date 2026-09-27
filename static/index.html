@@ -4,7 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SwimRight Miami — Budget Approval Portal</title>
-  <link rel="stylesheet" href="/static/styles.css?v=4.3">
+  <link rel="stylesheet" href="/static/styles.css?v=4.4">
+  <script>
+    try {
+      localStorage.removeItem("swimright_expenses");
+    } catch(e) {}
+  </script>
 </head>
 <body>
 
@@ -322,6 +327,6 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=4.3"></script>
+  <script src="/static/app.js?v=4.4"></script>
 </body>
 </html>
