@@ -404,7 +404,7 @@ async function handleApproveAll() {
 async function handleClearAllExpenses() {
   if (confirm("Вы уверены, что хотите полностью очистить список расходов для нового месяца?\nAre you sure you want to clear all expenses for the new month?")) {
     try {
-      await fetch("/api/expenses", { method: "DELETE" });
+      await fetch("/api/expenses/clear", { method: "POST" });
     } catch(e) {}
     expensesList = [];
     saveExpensesToStorage();
