@@ -153,14 +153,8 @@ async function loadDashboardData() {
     const res = await fetch("/api/expenses");
     if (res.ok) {
       const serverData = await res.json();
-      if (Array.isArray(serverData) && serverData.length > 0) {
-        // Merge server expenses with local expenses
-        const existingIds = new Set(expensesList.map(e => e.ExpenseID));
-        serverData.forEach(item => {
-          if (!existingIds.has(item.ExpenseID)) {
-            expensesList.unshift(item);
-          }
-        });
+      if (Array.isArray(serverData)) {
+        expensesList = serverData;
         saveExpensesToStorage();
       }
     }
@@ -355,23 +349,27 @@ function getStatusBadgeClass(status) {
 }
 
 async function approveItem(expenseId) {
-  const exp = expensesList.find(e => e.ExpenseID === expenseId);
-  if (exp) {
-    exp.CurrentStatus = "Approved";
-    saveExpensesToStorage();
-    showToast(`✅ Expense approved!`);
-    loadDashboardData();
-  }
+  try {
+    await fetch(`/api/expenses/${expenseId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Approved" })
+    });
+  } catch(e) {}
+  showToast(`✅ Expense approved!`);
+  loadDashboardData();
 }
 
 async function rejectItem(expenseId) {
-  const exp = expensesList.find(e => e.ExpenseID === expenseId);
-  if (exp) {
-    exp.CurrentStatus = "Rejected";
-    saveExpensesToStorage();
-    showToast(`❌ Expense rejected.`);
-    loadDashboardData();
-  }
+  try {
+    await fetch(`/api/expenses/${expenseId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Rejected" })
+    });
+  } catch(e) {}
+  showToast(`❌ Expense rejected.`);
+  loadDashboardData();
 }
 
 async function deleteItem(expenseId) {
@@ -387,15 +385,32 @@ async function deleteItem(expenseId) {
 
 async function handleApproveAll() {
   let count = 0;
-  expensesList.forEach(exp => {
+  for (const exp of expensesList) {
     if (exp.CurrentStatus === "Pending" && exp.RequestType === "Monthly Expense Request") {
-      exp.CurrentStatus = "Approved";
-      count++;
+      try {
+        await fetch(`/api/expenses/${exp.ExpenseID}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Approved" })
+        });
+        count++;
+      } catch(e) {}
     }
-  });
-  saveExpensesToStorage();
+  }
   showToast(`✅ Bulk Action: Approved ${count} pending monthly expenses!`);
   loadDashboardData();
+}
+
+async function handleClearAllExpenses() {
+  if (confirm("Вы уверены, что хотите полностью очистить список расходов для нового месяца?\nAre you sure you want to clear all expenses for the new month?")) {
+    try {
+      await fetch("/api/expenses", { method: "DELETE" });
+    } catch(e) {}
+    expensesList = [];
+    saveExpensesToStorage();
+    showToast("🗑️ All expenses cleared! Ready for new month.");
+    loadDashboardData();
+  }
 }
 
 function showToast(text) {

@@ -114,6 +114,11 @@ class GraphService:
                 return True
             return False
 
+    async def clear_all_expenses(self):
+        async with self._lock:
+            self._expenses.clear()
+            self._save_to_disk()
+
     async def update_status(self, expense_id: str, status: str, decision_date: Optional[str] = None, unlock_reason: Optional[str] = None) -> Optional[Dict]:
         async with self._lock:
             if expense_id in self._expenses:

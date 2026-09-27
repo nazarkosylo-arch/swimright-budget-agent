@@ -1,0 +1,26 @@
+{
+  "expenses": {
+    "EXP-2026-08-001": {
+      "ExpenseID": "EXP-2026-08-001",
+      "RequestType": "Monthly Expense Request",
+      "SubmittedBy": "admin@test.com",
+      "Program": "SwimFast",
+      "ExpenseName": "Team tshirts",
+      "AmountUSD": 1626.45,
+      "PurchasePurpose": "150 tshirts ( Anual Fees)",
+      "ExpenseCategory": "Equipment & Maintenance",
+      "OptionalLink": "",
+      "AttachmentRef": "",
+      "SubmissionDate": "2026-08-25T16:03:30.069205-04:00",
+      "DecisionDate": null,
+      "CurrentStatus": "Pending",
+      "AddedAfterApproval": "No",
+      "RejectedAfterEscalation": "No",
+      "UnlockReason": null,
+      "BudgetMonth": "August'26"
+    }
+  },
+  "counters": {
+    "2026-08": 1
+  }
+}

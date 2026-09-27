@@ -117,8 +117,9 @@
         <div class="panel">
           <div class="panel-title">
             <span>Operational Expense Ledger</span>
-            <div style="display: flex; gap: 0.5rem;">
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <button id="bulkApproveBtn" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="handleApproveAll()">✅ Approve All Pending</button>
+              <button id="clearAllBtn" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #f87171;" onclick="handleClearAllExpenses()">🗑️ Clear All (New Month)</button>
               <button class="btn btn-secondary" onclick="loadDashboardData()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">🔄 Refresh</button>
             </div>
           </div>

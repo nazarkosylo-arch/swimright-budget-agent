@@ -69,6 +69,9 @@ class ExpenseSubmitSchema(BaseModel):
     OptionalLink: Optional[str] = ""
     is_additional: Optional[bool] = False
 
+class StatusUpdateSchema(BaseModel):
+    status: str
+
 SHARED_PASSWORD = "Password123!"
 
 @app.post("/api/auth/login")
@@ -145,10 +148,22 @@ async def get_expense_endpoint(expense_id: str):
         raise HTTPException(status_code=404, detail="Expense record not found")
     return record
 
+@app.delete("/api/expenses")
+async def clear_all_expenses_endpoint():
+    await graph_service.clear_all_expenses()
+    return {"success": True, "message": "All expenses cleared."}
+
 @app.delete("/api/expenses/{expense_id}")
 async def delete_expense_endpoint(expense_id: str):
     deleted = await graph_service.delete_expense(expense_id)
     return {"success": True, "expense_id": expense_id}
+
+@app.patch("/api/expenses/{expense_id}/status")
+async def update_expense_status_endpoint(expense_id: str, payload: StatusUpdateSchema):
+    record = await graph_service.update_status(expense_id, payload.status)
+    if not record:
+        raise HTTPException(status_code=404, detail="Expense record not found")
+    return {"success": True, "record": record}
 
 @app.post("/api/approver/delegate")
 async def delegate_role_endpoint(requested_by: str):
