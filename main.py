@@ -148,8 +148,8 @@ async def get_expense_endpoint(expense_id: str):
         raise HTTPException(status_code=404, detail="Expense record not found")
     return record
 
-@app.post("/api/expenses/clear")
-@app.delete("/api/expenses/clear")
+@app.post("/api/clear-all-expenses")
+@app.delete("/api/clear-all-expenses")
 async def clear_all_expenses_endpoint():
     await graph_service.clear_all_expenses()
     return {"success": True, "message": "All expenses cleared."}
