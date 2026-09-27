@@ -51,20 +51,15 @@ function getSubmittedByName(email) {
 
 function saveExpensesToStorage() {
   try {
-    localStorage.setItem("swimright_expenses", JSON.stringify(expensesList));
+    localStorage.removeItem("swimright_expenses");
   } catch(e) {}
 }
 
 function loadExpensesFromStorage() {
   try {
-    const saved = localStorage.getItem("swimright_expenses");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        expensesList = parsed;
-      }
-    }
+    localStorage.removeItem("swimright_expenses");
   } catch(e) {}
+  expensesList = [];
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -150,12 +145,11 @@ function initTabs() {
 
 async function loadDashboardData() {
   try {
-    const res = await fetch("/api/expenses");
+    const res = await fetch(`/api/expenses?t=${Date.now()}`, { cache: "no-store" });
     if (res.ok) {
       const serverData = await res.json();
       if (Array.isArray(serverData)) {
         expensesList = serverData;
-        saveExpensesToStorage();
       }
     }
   } catch (err) {}
